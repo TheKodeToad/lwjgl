@@ -15,13 +15,18 @@
 		</condition>
 
 		<property name="sdk_path" value="Platforms/MacOSX.platform/Developer/SDKs"/>
-		
-		<!-- Choose a JDK -->
-		<property environment="env"/>
-		<property name="javavmroot" value="${env.JAVA_HOME}"/>
+		<property name="jvm_headers_path" value="System/Library/Frameworks/JavaVM.framework/Versions/A/Headers"/>
+
+		<!-- Choose a JavaVM.framework -->
+		<condition property="javavmroot" value="${developer_path}/${sdk_path}/MacOSX.sdk">
+			<and>
+				<not><isset property="javavmroot"/></not>
+				<available file="${developer_path}/${sdk_path}/MacOSX.sdk/${jvm_headers_path}" type="dir"/>
+			</and>
+		</condition>
 
 		<!-- Choose a MacOSX SDK -->
-		<property name="compiler" value="clang"/> <!-- Default to clang for 10.8 and up -->
+		<property name="compiler" value="clang"/>
 
 		<condition property="sdkroot" value="${developer_path}/${sdk_path}/MacOSX.sdk">
 			<and>

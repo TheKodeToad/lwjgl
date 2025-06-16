@@ -43,6 +43,7 @@ import java.awt.event.FocusListener;
 import java.awt.event.FocusEvent;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteOrder;
@@ -161,6 +162,8 @@ final class LinuxDisplay implements DisplayImplementation {
 	private LinuxMouse mouse;
 	
 	private String wm_class;
+    
+    private static boolean destroying;
 
 	private final FocusListener focus_listener = new FocusListener() {
 		public void focusGained(FocusEvent e) {
@@ -210,9 +213,25 @@ final class LinuxDisplay implements DisplayImplementation {
 		return result;
 	}
 
+	private static String findXrandr() {
+		for (String path : System.getenv("PATH").split(File.pathSeparator)) {
+			File file = new File(path, "xrandr");
+			if (file.isFile() && file.canExecute()) {
+				return file.getAbsolutePath();
+			}
+		}
+
+		return null;
+	}
+
 	private static boolean isXrandrSupported() {
 		if (Display.getPrivilegedBoolean("LWJGL_DISABLE_XRANDR"))
 			return false;
+
+		if (findXrandr() == null) {
+			return false;
+		}
+
 		lockAWT();
 		try {
 			incDisplay();
@@ -317,7 +336,14 @@ final class LinuxDisplay implements DisplayImplementation {
 		
 		if (display == getDisplay()) {
 			String error_msg = getErrorText(display, error_code);
-			throw new LWJGLException("X Error - disp: 0x" + Long.toHexString(error_display) + " serial: " + serial + " error: " + error_msg + " request_code: " + request_code + " minor_code: " + minor_code);
+            LWJGLException exception = new LWJGLException("X Error - disp: 0x" + Long.toHexString(error_display) + " serial: " + serial + " error: " + error_msg + " request_code: " + request_code + " minor_code: " + minor_code);
+            
+            if (destroying) {
+                exception.printStackTrace();
+                return 0;
+            }
+
+			throw exception;
 		} else if (saved_error_handler != 0)
 			return callErrorHandler(saved_error_handler, display, event_ptr);
 		return 0;
@@ -578,6 +604,8 @@ final class LinuxDisplay implements DisplayImplementation {
 	public void destroyWindow() {
 		lockAWT();
 		try {
+            destroying = true;
+
 			if (parent != null) {
 				parent.removeFocusListener(focus_listener);
 			}
@@ -742,8 +770,7 @@ final class LinuxDisplay implements DisplayImplementation {
 				case XRANDR:
 					saved_mode = AccessController.doPrivileged(new PrivilegedAction<DisplayMode>() {
 						public DisplayMode run() {
-							XRandR.saveConfiguration();
-                                                        return XRandR.ScreentoDisplayMode(XRandR.getConfiguration());
+							return XRandR.ScreentoDisplayMode(XRandR.getConfiguration());
 						}
 					});
 					break;
