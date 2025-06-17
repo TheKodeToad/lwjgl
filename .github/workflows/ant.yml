@@ -1,17 +1,15 @@
 name: Java CI
 
-on: [ push ]
+on: [ push, workflow_dispatch ]
 
 jobs:
   build-natives:
     strategy:
       matrix:
-        os: [macos-11]
-        arch: [x64, x86]
-        exclude:
-          - os: macos-11
-            arch: x86
+        os: [macos-latest]
+        arch: [arm64]
     runs-on: ${{ matrix.os }}
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 8
@@ -20,15 +18,7 @@ jobs:
         java-version: 8
         distribution: zulu
         architecture: ${{ matrix.arch }}
-    - if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
-      run: sudo apt install libx11-dev libxrandr-dev libxext-dev libxcursor-dev libxxf86vm-dev
-    - if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x86'
-      run: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install gcc-multilib libx11-dev:i386 libxrandr-dev:i386 libxext-dev:i386 libxcursor-dev:i386 libxxf86vm-dev:i386
-    - if: matrix.os == 'windows-latest'
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-          arch: ${{ matrix.arch }}
-    - if: matrix.os == 'macos-11'
+    - if: matrix.os == 'macos-latest'
       run: sudo xcode-select -s /Applications/Xcode_11.7.app/Contents/Developer
     - name: Build natives
       run: ant generate-all compile_native
